@@ -1,0 +1,26 @@
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  timeout: 5000
+
+development:
+  <<: *default
+  database: tv-dashboard
+  username: markpaul
+  password: markpaul # Set your PostgreSQL password here
+  host: localhost # You may need to specify the host, typically localhost
+
+test:
+  <<: *default
+  database: tv-dashboard
+  username: markpaul
+  password: markpaul # Set your PostgreSQL password here
+  host: localhost
+
+production:
+  <<: *default
+  database: tv-dashboard
+  username: markpaul
+  password: markpaul # Set your PostgreSQL password here
+  host: localhost
