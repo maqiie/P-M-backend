@@ -1,62 +1,147 @@
 class TasksController < ApplicationController
-    before_action :set_task, only: [:show, :edit, :update, :destroy]
-    before_action :authenticate_user!
-  
-    # Optional: restrict to project managers only
-    before_action :require_project_manager
-  
-    def index
-      @tasks = current_user.tasks
+  before_action :authenticate_user!
+  before_action :set_task, only: [:show, :update, :destroy]
+
+  # GET /tasks
+  def index
+    # Get tasks where current user is involved (as manager, owner, or assignee)
+    @tasks = current_user.all_tasks.includes(:assignees, :project, :project_manager, :user)
+    
+    # Apply filters if provided
+    @tasks = @tasks.where(status: Task.statuses[params[:status]]) if params[:status].present? && Task.statuses.key?(params[:status])
+    @tasks = @tasks.where(priority: params[:priority]) if params[:priority].present?
+    @tasks = @tasks.where(project_id: params[:project_id]) if params[:project_id].present?
+    
+    # Special filters
+    case params[:filter]
+    when 'active'
+      @tasks = @tasks.active
+    when 'overdue'
+      @tasks = @tasks.overdue
+    when 'due_today'
+      @tasks = @tasks.due_today
     end
-  
-    def show
+    
+    # Search
+    if params[:search].present?
+      @tasks = @tasks.where("title ILIKE ? OR description ILIKE ?", 
+                           "%#{params[:search]}%", "%#{params[:search]}%")
     end
-  
-    def new
-      @task = current_user.tasks.new
-    end
-  
-    def create
-      @task = current_user.tasks.new(task_params)
-      if @task.save
-        redirect_to @task, notice: 'Task was successfully created.'
-      else
-        render :new, status: :unprocessable_entity
+    
+    render json: { 
+      tasks: @tasks.as_json(include: {
+        assignees: { only: [:id, :name, :email] },
+        project: { only: [:id, :title] },
+        project_manager: { only: [:id, :name, :email] },
+        user: { only: [:id, :name, :email] }
+      })
+    }
+  end
+
+  # GET /tasks/:id
+  def show
+    render json: @task.as_json(include: {
+      assignees: { only: [:id, :name, :email] },
+      watchers: { only: [:id, :name, :email] },
+      project: { only: [:id, :title] },
+      project_manager: { only: [:id, :name, :email] },
+      user: { only: [:id, :name, :email] }
+    })
+  end
+
+  # POST /tasks
+  def create
+    @task = Task.new(task_params)
+    @task.project_manager = current_user  # Current user is the project manager
+    @task.user = current_user  # Current user is also the creator
+    
+    if @task.save
+      # Handle assignees
+      if params[:task][:assignee_ids].present?
+        @task.assignees = User.where(id: params[:task][:assignee_ids])
       end
-    end
-  
-    def edit
-    end
-  
-    def update
-      if @task.update(task_params)
-        redirect_to @task, notice: 'Task was successfully updated.'
-      else
-        render :edit, status: :unprocessable_entity
+      
+      # Handle watchers
+      if params[:task][:watcher_ids].present?
+        @task.watchers = User.where(id: params[:task][:watcher_ids])
       end
-    end
-  
-    def destroy
-      @task.destroy
-      redirect_to tasks_path, notice: 'Task was successfully deleted.'
-    end
-  
-    private
-  
-    def set_task
-      @task = current_user.tasks.find(params[:id])
-    rescue ActiveRecord::RecordNotFound
-      redirect_to tasks_path, alert: 'Task not found.'
-    end
-  
-    def task_params
-      params.require(:task).permit(:title, :description, :due_date, :status)
-    end
-  
-    def require_project_manager
-      unless current_user&.user?
-        redirect_to root_path, alert: 'Access denied. You must be a project manager.'
+      
+      # Handle custom fields if provided
+      if params[:task][:custom_fields].present?
+        @task.update(custom_fields: params[:task][:custom_fields])
       end
+      
+      render json: @task.as_json(include: {
+        assignees: { only: [:id, :name, :email] },
+        project: { only: [:id, :title] },
+        project_manager: { only: [:id, :name, :email] }
+      }), status: :created
+    else
+      render json: { errors: @task.errors.full_messages }, status: :unprocessable_entity
     end
   end
-  
+
+  # PUT/PATCH /tasks/:id
+  def update
+    if @task.update(task_params)
+      # Handle assignees
+      if params[:task][:assignee_ids].present?
+        @task.assignees = User.where(id: params[:task][:assignee_ids])
+      end
+      
+      # Handle watchers
+      if params[:task][:watcher_ids].present?
+        @task.watchers = User.where(id: params[:task][:watcher_ids])
+      end
+      
+      # Handle custom fields if provided
+      if params[:task][:custom_fields].present?
+        @task.update(custom_fields: params[:task][:custom_fields])
+      end
+      
+      render json: @task.as_json(include: {
+        assignees: { only: [:id, :name, :email] },
+        project: { only: [:id, :title] },
+        project_manager: { only: [:id, :name, :email] }
+      })
+    else
+      render json: { errors: @task.errors.full_messages }, status: :unprocessable_entity
+    end
+  end
+
+  # DELETE /tasks/:id
+  def destroy
+    @task.destroy
+    render json: { message: 'Task deleted successfully' }
+  end
+
+  # GET /tasks/statistics
+  def statistics
+    # Get tasks where current user is involved
+    user_tasks = current_user.all_tasks
+    today = Date.current
+    
+    stats = {
+      total: user_tasks.count,
+      completed: user_tasks.completed.count,
+      pending: user_tasks.pending.count,
+      in_progress: user_tasks.in_progress.count,
+      overdue: user_tasks.where('due_date < ? AND status NOT IN (?)', today, [Task.statuses[:completed], Task.statuses[:cancelled]]).count
+    }
+    
+    render json: { statistics: stats }
+  end
+
+  private
+
+  def set_task
+    @task = current_user.all_tasks.find(params[:id])
+  end
+
+  def task_params
+    params.require(:task).permit(
+      :title, :description, :due_date, :start_date, :status, :priority,
+      :estimated_hours, :project_id, tags: []
+    )
+  end
+end

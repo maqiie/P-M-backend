@@ -1,131 +1,167 @@
-
 Rails.application.routes.draw do
   # Authentication routes
   mount_devise_token_auth_for 'User', at: 'auth', controllers: {
     registrations: 'auth/registrations',
     sessions: 'auth/sessions'
   }
-
+  
   devise_scope :user do
     post "/auth/verify_otp" => "auth/sessions#verify_otp"
     get 'users/confirmation_success', to: 'application#confirmation_success', as: :users_confirmation_success
     get 'users/email_confirmed', to: 'application#email_confirmed'
     get 'users/confirm_email', to: 'application#confirm_email', as: 'confirm_email'
   end
+  
+  # Project Managers namespace routes
+  namespace :project_managers do
+    get 'dashboard'
+    get 'my_projects'
+    get 'upcoming_events'
+    get 'my_tenders'
+    get 'statistics'
+    get 'team_members'
+    get 'projects_progress'
+    
+    resources :tasks
 
-  # Project Manager Dashboard Routes
-  resources :project_managers do
-    collection do
-      get 'dashboard'           # Main dashboard data
-      get 'my_projects'         # Projects managed by current user
-      get 'upcoming_events'     # Upcoming events for PM's projects
-      get 'my_tenders'          # Tenders assigned to PM
-      get 'statistics'          # Dashboard statistics
-      get 'team_members'        # Team member statistics
-      get 'projects_progress'   # Project progress overview
-    end
+    # Progress management routes
+    patch 'projects/:id/update_progress', to: 'project_managers#update_progress', as: 'update_project_progress'
+    get 'projects/:id/progress', to: 'project_managers#show_progress', as: 'show_project_progress'
+    get 'projects/:id/progress_history', to: 'project_managers#progress_history', as: 'project_progress_history'
   end
 
-  # Projects routes with enhanced functionality
   resources :projects do
     collection do
-      get 'chart_data'          # Chart data for analytics
-      get 'my_projects'         # Alternative route for current user's projects
+      get 'active'              
+      get 'completed'           
+      get 'chart_data'
+      get 'my_projects'
+      get 'progress_summary'
+      get 'dashboard_progress'
     end
     
     member do
-      get 'progress'            # Individual project progress
-      patch 'update_progress'   # Update project progress
-      get 'team'                # Project team members
-      get 'timeline'            # Project timeline/milestones
+      get 'progress'
+      get 'progress_history'
+      get 'team'
+      get 'timeline'
+      get 'progress_trends'
+      get 'progress_details'
+      
+      patch 'update_progress', to: 'projects#update_progress'
+      put 'update_progress', to: 'projects#update_progress'
     end
     
-    # Nested resources for project-specific data
+    
+    # Nested events routes inside projects
     resources :events, except: [:index] do
       collection do
-        get 'upcoming'          # Upcoming events for this project
+        get 'upcoming'
       end
     end
   end
 
-  # Events routes with project manager context
+  # Events routes (non-nested)
   resources :events do
     collection do
-      get 'my_events'           # Events for PM's projects
-      get 'upcoming'            # All upcoming events
-      get 'this_week'           # Events for current week
+      get 'my_events'
+      get 'upcoming'
+      get 'this_week'
     end
     
     member do
-      patch 'mark_completed'    # Mark event as completed
-      patch 'reschedule'        # Reschedule event
+      patch 'mark_completed'
+      patch 'reschedule'
     end
   end
 
-  # Tenders routes with enhanced functionality
+  # Tenders routes
   resources :tenders do
     collection do
-      get 'my_tenders'          # Tenders for current PM
-      get 'active'              # Active tenders
-      get 'urgent'              # Urgent tenders (deadline soon)
-      get 'drafts'              # Draft tenders
+      get 'my_tenders'
+      get 'active'
+      get 'urgent'
+      get 'drafts'
     end
     
     member do
-      post 'convert_to_project' # Convert tender to project
-      patch 'update_status'     # Update tender status
-      get 'details'             # Detailed tender view
+      post 'convert_to_project'
+      patch 'update_status'
+      get 'details'
     end
   end
 
   # Supervisors routes
   resources :supervisors do
     collection do
-      get 'workload'            # Supervisor workload data
+      get 'workload'
     end
     
     member do
-      get 'projects'            # Projects under this supervisor
-      get 'performance'         # Supervisor performance metrics
+      get 'projects'
+      get 'performance'
     end
   end
 
+  # Other resources - UPDATED SECTION
+  resources :tasks do
+    collection do
+      get :statistics
+    end
+  end
+  resources :custom_fields
+  resources :site_managers, only: [:index, :show, :create, :update, :destroy]
+  resources :project_managers
 
-  resources :tasks
-
-
-  # Dashboard routes (can be used for different user types)
+  # Dashboard routes
   get 'dashboard', to: 'dashboard#index'
   get 'dashboard/overview', to: 'dashboard#overview'
   get 'dashboard/analytics', to: 'dashboard#analytics'
+  get 'dashboard/projects_progress', to: 'dashboard#projects_progress'  # New route
 
-  # API routes for dashboard widgets
+  # API namespace v1
   namespace :api do
     namespace :v1 do
       get 'dashboard/quick_stats'
       get 'dashboard/recent_activities'
       get 'dashboard/notifications'
+      get 'dashboard/projects_progress'  # New API endpoint
       
-      # Project-specific API endpoints
       resources :projects, only: [:index, :show] do
         collection do
           get 'search'
           get 'filters'
+          get 'with_progress'  # New endpoint for projects with progress
+        end
+        
+        member do
+          get 'progress'
+          patch 'update_progress'
+          get 'progress_history'
         end
       end
       
-      # Real-time updates
       get 'live_updates/projects'
       get 'live_updates/events'
       get 'live_updates/tenders'
+      get 'live_updates/progress'  # New live updates for progress
     end
   end
 
-  # Reports and Analytics
+  # Progress-specific routes (consolidated)
+  namespace :progress do
+    resources :updates, only: [:create, :index, :show]
+    resources :reports, only: [:index, :show]
+    get 'dashboard/:project_id', to: 'dashboard#show'
+    get 'summary', to: 'dashboard#summary'
+  end
+
+  # Reports and analytics
   namespace :reports do
     get 'projects/summary'
     get 'projects/timeline'
     get 'projects/budget'
+    get 'projects/progress'    # New progress report
     get 'team/performance'
     get 'team/workload'
     get 'tenders/conversion_rate'
@@ -139,12 +175,12 @@ Rails.application.routes.draw do
       delete 'bulk_delete'
     end
   end
-  
+
   resources :image_projects do
     resources :images, only: [:create]
   end
 
-  # Notification routes
+  # Notifications
   resources :notifications, only: [:index, :show, :update] do
     collection do
       patch 'mark_all_read'
@@ -156,7 +192,7 @@ Rails.application.routes.draw do
     end
   end
 
-  # Search functionality
+  # Search
   get 'search', to: 'search#index'
   get 'search/projects', to: 'search#projects'
   get 'search/events', to: 'search#events'
@@ -167,7 +203,7 @@ Rails.application.routes.draw do
   get 'calendar/events', to: 'calendar#events'
   get 'calendar/month/:year/:month', to: 'calendar#month'
 
-  # Team management
+  # Teams management
   resources :teams, only: [:index, :show] do
     member do
       get 'schedule'
@@ -189,32 +225,16 @@ Rails.application.routes.draw do
     end
   end
 
-  # Legacy routes (keep for backward compatibility)
+  # Legacy routes (keep if needed)
   get "/tenders", to: 'application#tenders'
 
-  # Health check and status
+  # Health and status checks
   get 'health', to: 'application#health'
   get 'status', to: 'application#status'
 
-  resources :supervisors, only: [:index, :show, :create, :update, :destroy]
-  resources :site_managers, only: [:index, :show, :create, :update, :destroy]
-  # Catch-all route for SPA (if using React Router)
-  # get '*path', to: 'application#index', constraints: ->(req) { !req.xhr? && req.format.html? }
 
-  resources :projects do
-    collection do
-      get 'chart_data'          # Your existing route
-      get 'my_projects'         # Your existing route
-      get 'progress_summary'    # ADD THIS NEW ROUTE
-    end
-    
-    member do
-      get 'progress'            # ADD THIS NEW ROUTE  
-      patch 'update_progress'   # ADD THIS NEW ROUTE
-      get 'progress_history'    # ADD THIS NEW ROUTE
-      get 'team'                # Your existing route (if you have it)
-      get 'timeline'            # Your existing route (if you have it)
-    end
-    
+  # Calendar integration
+get 'calendar', to: 'calendar#index'
+get 'calendar/events', to: 'calendar#events'
+get 'calendar/month/:year/:month', to: 'calendar#month'
 end
-

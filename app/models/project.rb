@@ -4,6 +4,8 @@ class Project < ApplicationRecord
   belongs_to :supervisor, class_name: 'User', foreign_key: 'supervisor_id'
   has_many :events, dependent: :destroy
   has_many :tenders, dependent: :destroy
+  has_many :progress_updates, dependent: :destroy
+
   belongs_to :site_manager, class_name: 'User', foreign_key: 'site_manager_id', optional: true
   belongs_to :user, optional: true
 
@@ -63,14 +65,11 @@ class Project < ApplicationRecord
 
   # UPDATED: Progress tracking methods
   def progress_percentage
-    # Use database value if available, otherwise calculate based on status
-    progress_percentage_value || calculate_progress_from_status
+    val = self[:progress_percentage]
+    return calculate_progress_from_status if val.nil?
+    val.to_f.round(2)
   end
-
-  def progress_percentage_value
-    # This will be the actual database field
-    read_attribute(:progress_percentage_value) || 0
-  end
+  
 
   def calculate_progress_from_status
     case status
@@ -78,7 +77,7 @@ class Project < ApplicationRecord
     when 'in_progress' then 50
     when 'review' then 85
     when 'completed' then 100
-    when 'on_hold' then progress_percentage_value || 25
+    when 'on_hold' then 25
     else 0
     end
   end

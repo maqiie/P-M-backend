@@ -15,7 +15,25 @@ class User < ActiveRecord::Base
   has_many :roles
   enum role: { user: 0, admin: 1 }
   has_many :managed_projects, class_name: 'Project', foreign_key: 'project_manager_id'
-  has_many :tasks, foreign_key: :project_manager_id, dependent: :destroy
+  has_many :managed_tasks, foreign_key: 'project_manager_id', class_name: 'Task', dependent: :destroy
+  has_many :owned_tasks, foreign_key: 'user_id', class_name: 'Task', dependent: :destroy
+  has_and_belongs_to_many :assigned_tasks, class_name: 'Task', join_table: 'task_assignees'
+  has_and_belongs_to_many :watched_tasks, class_name: 'Task', join_table: 'task_watchers'
+  
+  # Method to get all tasks user is involved with
+# Method to get all tasks user is involved with
+def all_tasks
+  # Get task IDs separately to avoid DISTINCT on JSON columns
+  manager_task_ids = Task.where(project_manager_id: id).pluck(:id)
+  owner_task_ids = Task.where(user_id: id).pluck(:id)
+  assigned_task_ids = assigned_tasks.pluck(:id)
+  
+  # Combine and remove duplicates
+  all_task_ids = (manager_task_ids + owner_task_ids + assigned_task_ids).uniq
+  
+  # Return tasks by IDs
+  Task.where(id: all_task_ids)
+end
 
 
   def project_manager?
@@ -37,6 +55,7 @@ class User < ActiveRecord::Base
     ROTP::TOTP.new(otp_secret).verify(otp, drift_behind: 30) # Allow a 30-second drift
   end
 
+  
   private
 
   def generate_otp_secret

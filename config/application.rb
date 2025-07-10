@@ -55,7 +55,7 @@ config.active_record.encryption.primary_key = "6854706591f80e5c416950d9197aa31ad
         resource '*',
                  :headers => :any,
                  :expose => ['access-token', 'expiry', 'token-type', 'uid', 'client'],
-                 :methods => [:get, :post, :options, :delete, :put]
+                 :methods => [:get, :post, :options, :delete, :put, :patch]
       end
     end
     # ここまで

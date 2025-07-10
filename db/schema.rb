@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2025_07_04_075322) do
+ActiveRecord::Schema[7.0].define(version: 2025_07_10_123341) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -40,6 +40,19 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_04_075322) do
     t.bigint "blob_id", null: false
     t.string "variation_digest", null: false
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
+
+  create_table "custom_fields", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "field_type", null: false
+    t.text "description"
+    t.boolean "required", default: false
+    t.string "entity_type", default: "task"
+    t.json "options", default: {}
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["entity_type", "name"], name: "index_custom_fields_on_entity_type_and_name", unique: true
+    t.index ["field_type"], name: "index_custom_fields_on_field_type"
   end
 
   create_table "events", force: :cascade do |t|
@@ -186,6 +199,20 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_04_075322) do
     t.index ["email"], name: "index_supervisors_on_email", unique: true
   end
 
+  create_table "task_assignees", id: false, force: :cascade do |t|
+    t.bigint "task_id", null: false
+    t.bigint "user_id", null: false
+    t.index ["task_id"], name: "index_task_assignees_on_task_id"
+    t.index ["user_id"], name: "index_task_assignees_on_user_id"
+  end
+
+  create_table "task_watchers", id: false, force: :cascade do |t|
+    t.bigint "task_id", null: false
+    t.bigint "user_id", null: false
+    t.index ["task_id"], name: "index_task_watchers_on_task_id"
+    t.index ["user_id"], name: "index_task_watchers_on_user_id"
+  end
+
   create_table "tasks", force: :cascade do |t|
     t.string "title"
     t.text "description"
@@ -194,7 +221,22 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_04_075322) do
     t.bigint "project_manager_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.date "start_date"
+    t.string "priority", default: "medium"
+    t.decimal "estimated_hours", precision: 8, scale: 2
+    t.bigint "project_id"
+    t.json "custom_fields", default: {}
+    t.json "tags", default: []
+    t.boolean "is_starred", default: false
+    t.boolean "is_archived", default: false
+    t.bigint "user_id"
+    t.string "status_string", default: "pending"
+    t.index ["due_date"], name: "index_tasks_on_due_date"
+    t.index ["priority"], name: "index_tasks_on_priority"
+    t.index ["project_id"], name: "index_tasks_on_project_id"
+    t.index ["project_manager_id", "status"], name: "index_tasks_on_project_manager_id_and_status"
     t.index ["project_manager_id"], name: "index_tasks_on_project_manager_id"
+    t.index ["user_id"], name: "index_tasks_on_user_id"
   end
 
   create_table "tenders", force: :cascade do |t|
@@ -208,8 +250,20 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_04_075322) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "other_column_name"
+    t.string "status", default: "draft"
+    t.string "priority", default: "medium"
+    t.string "category"
+    t.string "location"
+    t.string "client"
+    t.decimal "budget_estimate", precision: 12, scale: 2
+    t.string "estimated_duration"
+    t.text "requirements"
+    t.integer "submission_count", default: 0
+    t.index ["deadline"], name: "index_tenders_on_deadline"
+    t.index ["priority"], name: "index_tenders_on_priority"
     t.index ["project_id"], name: "index_tenders_on_project_id"
     t.index ["project_manager_id"], name: "index_tenders_on_project_manager_id"
+    t.index ["status"], name: "index_tenders_on_status"
   end
 
   create_table "users", force: :cascade do |t|
@@ -254,7 +308,9 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_04_075322) do
   add_foreign_key "projects", "site_managers"
   add_foreign_key "projects", "users", column: "project_manager_id"
   add_foreign_key "projects", "users", column: "supervisor_id"
-  add_foreign_key "tasks", "project_managers"
+  add_foreign_key "tasks", "projects"
+  add_foreign_key "tasks", "users"
+  add_foreign_key "tasks", "users", column: "project_manager_id"
   add_foreign_key "tenders", "projects"
   add_foreign_key "tenders", "users", column: "project_manager_id"
 end
