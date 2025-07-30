@@ -55,8 +55,16 @@ class SupervisorsController < ApplicationController
   end
   
   def supervisor_params
-    params.require(:supervisor).permit(:name, :email)
+    params.require(:supervisor).permit(
+      :name,
+      :email,
+      :phone,
+      :location,
+      :specialization,
+      :experience_years
+    )
   end
+  
   
   def supervisor_json(supervisor)
     {

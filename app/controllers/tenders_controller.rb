@@ -3,22 +3,29 @@ class TendersController < ApplicationController
   before_action :set_tender, only: [:show, :update, :destroy, :convert_to_project, :update_status, :details]
 
   def index
-    @tenders = current_user.tenders.includes(:project_manager, :project)
-    
-    # Apply filters if provided
+    if current_user.admin?
+      # Admin sees all tenders
+      @tenders = Tender.includes(:project_manager, :project)
+    else
+      # Non-admin sees only their tenders
+      @tenders = current_user.tenders.includes(:project_manager, :project)
+    end
+  
+    # Apply filters if present
     @tenders = @tenders.where(status: params[:status]) if params[:status].present?
     @tenders = @tenders.where(priority: params[:priority]) if params[:priority].present?
     @tenders = @tenders.where("title ILIKE ?", "%#{params[:search]}%") if params[:search].present?
-    
-    # Apply sorting
+  
+    # Sort by deadline
     @tenders = @tenders.by_deadline
-    
+  
     render json: {
       tenders: @tenders.map { |tender| tender_json(tender) },
       total: @tenders.count,
       status: 'success'
     }
   end
+  
 
   def show
     render json: {
@@ -97,6 +104,28 @@ class TendersController < ApplicationController
     end
   end
 
+  def update_status
+    if @tender.update(status: params[:status])
+      render json: {
+        tender: tender_json(@tender),
+        message: "Tender status updated to #{params[:status]}",
+        status: 'success'
+      }
+    else
+      render json: {
+        errors: @tender.errors.full_messages,
+        status: 'error'
+      }, status: :unprocessable_entity
+    end
+  end
+
+  def details
+    render json: {
+      tender: tender_json(@tender, include_details: true),
+      status: 'success'
+    }
+  end
+
   # Specific endpoints for filtering
   def active
     @tenders = current_user.tenders.active.by_deadline
@@ -125,8 +154,24 @@ class TendersController < ApplicationController
     }
   end
 
-  def my_tenders
-    index # Alias for index - for compatibility with frontend
+  def statistics
+    @tenders = current_user.tenders
+    today = Date.current
+    
+    stats = {
+      total: @tenders.count,
+      active: @tenders.where(status: 'active').count,
+      draft: @tenders.where(status: 'draft').count,
+      completed: @tenders.where(status: 'completed').count,
+      rejected: @tenders.where(status: 'rejected').count,
+      converted: @tenders.where(status: 'converted').count,
+      urgent: @tenders.joins("LEFT JOIN (SELECT id FROM tenders WHERE deadline <= '#{7.days.from_now.to_date}' AND status = 'active') AS urgent_tenders ON tenders.id = urgent_tenders.id").where.not(urgent_tenders: { id: nil }).count,
+      expired: @tenders.where('deadline < ? AND status NOT IN (?)', today, ['completed', 'converted', 'rejected']).count,
+      totalValue: @tenders.sum(:budget_estimate) || 0,
+      avgSubmissions: @tenders.count > 0 ? (@tenders.sum(:submission_count).to_f / @tenders.count).round(2) : 0
+    }
+    
+    render json: { statistics: stats, status: 'success' }
   end
 
   private
@@ -150,7 +195,7 @@ class TendersController < ApplicationController
   end
 
   def tender_json(tender, include_details: false)
-    {
+    base_data = {
       id: tender.id,
       title: tender.title,
       description: tender.description,
@@ -171,10 +216,10 @@ class TendersController < ApplicationController
       submission_count: tender.submission_count || 0,
       
       # Calculated fields
-      days_remaining: tender.days_remaining,
-      expired: tender.expired?,
-      urgent: tender.urgent?,
-      status_color: tender.status_color,
+      days_remaining: tender.respond_to?(:days_remaining) ? tender.days_remaining : calculate_days_remaining(tender.deadline),
+      expired: tender.respond_to?(:expired?) ? tender.expired? : calculate_expired(tender.deadline),
+      urgent: tender.respond_to?(:urgent?) ? tender.urgent? : calculate_urgent(tender.deadline),
+      status_color: tender.respond_to?(:status_color) ? tender.status_color : get_status_color(tender.status),
       
       # Associations
       project_manager: {
@@ -183,6 +228,19 @@ class TendersController < ApplicationController
         email: tender.project_manager&.email
       }
     }
+    
+    if include_details
+      base_data.merge!({
+        full_description: tender.description,
+        detailed_requirements: tender.requirements,
+        submission_details: {
+          count: tender.submission_count || 0,
+          last_submission_date: tender.updated_at
+        }
+      })
+    end
+    
+    base_data
   end
 
   def project_json(project)
@@ -191,7 +249,35 @@ class TendersController < ApplicationController
       title: project.title,
       description: project.description,
       status: project.status,
-      progress: project.progress_percentage || 0
+      progress: project.respond_to?(:progress_percentage) ? project.progress_percentage : 0
     }
+  end
+
+  # Helper methods for calculated fields
+  def calculate_days_remaining(deadline)
+    return nil unless deadline
+    (deadline.to_date - Date.current).to_i
+  end
+
+  def calculate_expired(deadline)
+    return false unless deadline
+    deadline.to_date < Date.current
+  end
+
+  def calculate_urgent(deadline)
+    return false unless deadline
+    days = calculate_days_remaining(deadline)
+    days && days <= 7 && days >= 0
+  end
+
+  def get_status_color(status)
+    case status
+    when 'active' then 'green'
+    when 'draft' then 'yellow'
+    when 'completed' then 'blue'
+    when 'rejected' then 'red'
+    when 'converted' then 'purple'
+    else 'gray'
+    end
   end
 end

@@ -2,7 +2,8 @@ class Tender < ApplicationRecord
   # Associations
   belongs_to :project_manager, class_name: 'User', foreign_key: 'project_manager_id'
   belongs_to :project, optional: true
-  
+  belongs_to :user
+
   # Validations
   validates :title, presence: true, length: { minimum: 3, maximum: 255 }
   validates :description, presence: true

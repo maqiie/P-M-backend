@@ -12,6 +12,8 @@ Rails.application.routes.draw do
     get 'users/confirm_email', to: 'application#confirm_email', as: 'confirm_email'
   end
   
+  get 'project_managers/list', to: 'project_managers#list'
+
   # Project Managers namespace routes
   namespace :project_managers do
     get 'dashboard'
@@ -21,6 +23,9 @@ Rails.application.routes.draw do
     get 'statistics'
     get 'team_members'
     get 'projects_progress'
+
+# get '/project_managers/list', to: 'project_managers#list'
+
     
     resources :tasks
 
@@ -232,6 +237,8 @@ Rails.application.routes.draw do
   get 'health', to: 'application#health'
   get 'status', to: 'application#status'
 
+# config/routes.rb
+# get 'project_managers/list', to: 'project_managers#list'
 
   # Calendar integration
 get 'calendar', to: 'calendar#index'

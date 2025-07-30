@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2025_07_10_123341) do
+ActiveRecord::Schema[7.0].define(version: 2025_07_14_135726) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -196,6 +196,10 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_10_123341) do
     t.string "email", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "phone"
+    t.string "location"
+    t.string "specialization"
+    t.integer "experience_years"
     t.index ["email"], name: "index_supervisors_on_email", unique: true
   end
 
@@ -259,11 +263,13 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_10_123341) do
     t.string "estimated_duration"
     t.text "requirements"
     t.integer "submission_count", default: 0
+    t.bigint "user_id", null: false
     t.index ["deadline"], name: "index_tenders_on_deadline"
     t.index ["priority"], name: "index_tenders_on_priority"
     t.index ["project_id"], name: "index_tenders_on_project_id"
     t.index ["project_manager_id"], name: "index_tenders_on_project_manager_id"
     t.index ["status"], name: "index_tenders_on_status"
+    t.index ["user_id"], name: "index_tenders_on_user_id"
   end
 
   create_table "users", force: :cascade do |t|
@@ -290,6 +296,11 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_10_123341) do
     t.integer "consumed_timestep"
     t.boolean "otp_required_for_login"
     t.boolean "admin", default: false, null: false
+    t.integer "sign_in_count", default: 0, null: false
+    t.datetime "current_sign_in_at"
+    t.datetime "last_sign_in_at"
+    t.inet "current_sign_in_ip"
+    t.inet "last_sign_in_ip"
     t.index ["confirmation_token"], name: "index_users_on_confirmation_token", unique: true
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
@@ -312,5 +323,6 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_10_123341) do
   add_foreign_key "tasks", "users"
   add_foreign_key "tasks", "users", column: "project_manager_id"
   add_foreign_key "tenders", "projects"
+  add_foreign_key "tenders", "users"
   add_foreign_key "tenders", "users", column: "project_manager_id"
 end
