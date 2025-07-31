@@ -12,6 +12,20 @@ class ApplicationController < ActionController::Base
     redirect_to root_path, alert: "Access denied."
   end
   
+
+  def log_activity(action, target: nil, metadata: {})
+    return unless current_user
+  
+    Activity.create!(
+      actor: current_user,
+      action: action,
+      target: target,
+      metadata: metadata
+    )
+  end
+  
+
+  
   def confirm_email
     confirmation_token = params[:confirmation_token]
     user = User.find_by(confirmation_token: confirmation_token)

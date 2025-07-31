@@ -230,6 +230,13 @@ Rails.application.routes.draw do
     end
   end
 
+  resources :activities, only: [:index, :show] do
+    collection do
+      # Optional custom routes for additional filtering or stats
+      get 'stats'       # e.g. /activities/stats for summary statistics
+      get 'recent'      # e.g. /activities/recent for latest activities
+    end
+  end
   # Legacy routes (keep if needed)
   get "/tenders", to: 'application#tenders'
 
