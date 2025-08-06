@@ -471,9 +471,54 @@ class ProjectsController < ApplicationController
     end
   end
 
-  def project_params
-    params.require(:project).permit(:title, :status, :supervisor_id, :location, :finishing_date, :lead_person, :start_date)
+  def mark_as_completed
+    project = Project.find(params[:id])
+  
+    if project.update(status: 'completed', progress_percentage: 100)
+      log_activity(
+        "marked_as_completed",
+        target: project,
+        metadata: { notes: "Marked as completed by #{current_user.name}" }
+      )
+  
+      render json: {
+        success: true,
+        message: "Project marked as completed",
+        project: project
+      }, status: :ok
+    else
+      render json: {
+        success: false,
+        errors: project.errors.full_messages
+      }, status: :unprocessable_entity
+    end
   end
+  
+  
+
+  def project_params
+    params.require(:project).permit(
+      :title,
+      :description,
+      :location,
+      :budget,
+      :start_date,
+      :finishing_date,
+      :priority,
+      :status,
+      :project_manager_id,
+      :supervisor_id,
+      :site_manager_id,
+      :user_id,
+      :lead_person,
+      :responsible,
+      :actual_start_date,
+      :estimated_completion_date,
+      :progress_percentage,
+      :progress_notes
+    )
+  end
+  
 
   def set_project
     @project = current_user.managed_projects.lock(true).find_by(id: params[:id])
