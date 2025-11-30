@@ -14,6 +14,7 @@ gem 'base32'
 gem 'topt'
 gem 'mini_magick'
 gem 'kaminari'
+gem 'sidekiq'
 
 
 

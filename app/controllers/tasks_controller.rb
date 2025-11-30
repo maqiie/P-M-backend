@@ -4,8 +4,12 @@ class TasksController < ApplicationController
 
   # GET /tasks
   def index
-    # Get tasks where current user is involved (as manager, owner, or assignee)
-    @tasks = current_user.all_tasks.includes(:assignees, :watchers, :project, :project_manager, :user)
+    # Admin sees ALL tasks, regular users see only their tasks
+    if current_user.admin?
+      @tasks = Task.includes(:assignees, :watchers, :project, :project_manager, :user)
+    else
+      @tasks = current_user.all_tasks.includes(:assignees, :watchers, :project, :project_manager, :user)
+    end
 
     # Filters
     @tasks = @tasks.where(status: Task.statuses[params[:status]]) if params[:status].present? && Task.statuses.key?(params[:status])
@@ -27,6 +31,9 @@ class TasksController < ApplicationController
       @tasks = @tasks.where("title ILIKE ? OR description ILIKE ?", "%#{params[:search]}%", "%#{params[:search]}%")
     end
 
+    # Order: overdue first, then by due date ascending, nulls last
+    @tasks = @tasks.order(Arel.sql('CASE WHEN due_date IS NULL THEN 1 ELSE 0 END, due_date ASC'))
+
     render json: {
       tasks: @tasks.map { |task| task_json(task) }
     }
@@ -40,24 +47,15 @@ class TasksController < ApplicationController
   # POST /tasks
   def create
     @task = Task.new(task_params)
-    @task.project_manager = current_user  # Assign current user as project manager
-    @task.user = current_user             # Assign current user as creator
+    @task.project_manager = current_user
+    @task.user = current_user
 
     if @task.save
-      # Assign assignees if provided
-      if params[:task][:assignee_ids].present?
-        @task.assignees = User.where(id: params[:task][:assignee_ids])
-      end
+      @task.assignees = User.where(id: params[:task][:assignee_ids]) if params[:task][:assignee_ids].present?
+      @task.watchers = User.where(id: params[:task][:watcher_ids]) if params[:task][:watcher_ids].present?
+      @task.update(custom_fields: params[:task][:custom_fields]) if params[:task][:custom_fields].present?
 
-      # Assign watchers if provided
-      if params[:task][:watcher_ids].present?
-        @task.watchers = User.where(id: params[:task][:watcher_ids])
-      end
-
-      # Update custom fields if provided
-      if params[:task][:custom_fields].present?
-        @task.update(custom_fields: params[:task][:custom_fields])
-      end
+      NotificationService.task_created(@task, current_user)
 
       render json: task_json(@task), status: :created
     else
@@ -67,21 +65,15 @@ class TasksController < ApplicationController
 
   # PUT/PATCH /tasks/:id
   def update
+    old_status = @task.status
+
     if @task.update(task_params)
-      # Update assignees if provided
-      if params[:task][:assignee_ids].present?
-        @task.assignees = User.where(id: params[:task][:assignee_ids])
-      end
+      @task.assignees = User.where(id: params[:task][:assignee_ids]) if params[:task][:assignee_ids].present?
+      @task.watchers = User.where(id: params[:task][:watcher_ids]) if params[:task][:watcher_ids].present?
+      @task.update(custom_fields: params[:task][:custom_fields]) if params[:task][:custom_fields].present?
 
-      # Update watchers if provided
-      if params[:task][:watcher_ids].present?
-        @task.watchers = User.where(id: params[:task][:watcher_ids])
-      end
-
-      # Update custom fields if provided
-      if params[:task][:custom_fields].present?
-        @task.update(custom_fields: params[:task][:custom_fields])
-      end
+      NotificationService.task_updated(@task, current_user)
+      NotificationService.task_status_changed(@task, current_user, old_status, @task.status) if old_status != @task.status
 
       render json: task_json(@task)
     else
@@ -92,12 +84,18 @@ class TasksController < ApplicationController
   # DELETE /tasks/:id
   def destroy
     @task.destroy
+    NotificationService.task_deleted(@task, current_user)
     render json: { message: 'Task deleted successfully' }
   end
 
   # GET /tasks/statistics
   def statistics
-    user_tasks = current_user.all_tasks
+    if current_user.admin?
+      user_tasks = Task.all
+    else
+      user_tasks = current_user.all_tasks
+    end
+
     today = Date.current
 
     stats = {
@@ -114,7 +112,11 @@ class TasksController < ApplicationController
   private
 
   def set_task
-    @task = current_user.all_tasks.find(params[:id])
+    if current_user.admin?
+      @task = Task.find(params[:id])
+    else
+      @task = current_user.all_tasks.find(params[:id])
+    end
   rescue ActiveRecord::RecordNotFound
     render json: { error: 'Task not found or not authorized' }, status: :not_found
   end

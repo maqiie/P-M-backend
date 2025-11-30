@@ -5,7 +5,6 @@ class Project < ApplicationRecord
   has_many :events, dependent: :destroy
   has_many :tenders, dependent: :destroy
   has_many :progress_updates, dependent: :destroy
-
   belongs_to :site_manager, class_name: 'User', foreign_key: 'site_manager_id', optional: true
   belongs_to :user, optional: true
 
@@ -33,7 +32,10 @@ class Project < ApplicationRecord
   validates :project_manager_id, presence: true
   validates :supervisor_id, presence: true
   validates :finishing_date, presence: true
-  validate :finishing_date_cannot_be_in_the_past
+  
+  # Fixed validation - only check on create, or when date is being changed
+  validate :finishing_date_cannot_be_in_the_past, on: :create
+  validate :finishing_date_cannot_be_changed_to_past, on: :update
 
   # Scopes
   scope :active, -> { where.not(status: ['completed', 'cancelled']) }
@@ -70,7 +72,6 @@ class Project < ApplicationRecord
     val.to_f.round(2)
   end
   
-
   def calculate_progress_from_status
     case status
     when 'planning' then 15
@@ -212,9 +213,17 @@ class Project < ApplicationRecord
 
   private
 
+  # Only check when creating a new project
   def finishing_date_cannot_be_in_the_past
     if finishing_date.present? && finishing_date < Date.current
       errors.add(:finishing_date, "can't be in the past")
+    end
+  end
+
+  # Only check when the finishing_date itself is being changed
+  def finishing_date_cannot_be_changed_to_past
+    if finishing_date_changed? && finishing_date.present? && finishing_date < Date.current
+      errors.add(:finishing_date, "can't be changed to a date in the past")
     end
   end
 end

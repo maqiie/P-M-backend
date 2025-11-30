@@ -1,9 +1,20 @@
 class EventsController < ApplicationController
 
-def index
-  @events = Event.all
-  render json: @events
-end
+  def index
+    @events = Event.all
+    render json: @events
+  end
+
+  def upcoming
+    limit = params[:limit] || 10
+
+    @events = Event
+                .where("date >= ?", Time.zone.now.to_date)
+                .order(date: :asc)
+                .limit(limit)
+
+    render json: @events
+  end
 
   def create
     @event = Event.new(event_params)

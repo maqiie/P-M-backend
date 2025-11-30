@@ -25,6 +25,7 @@ module DeviseTokenAuthTwitter
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 5.2
 
+config.active_job.queue_adapter = :sidekiq
 
 # In config/application.rb or an appropriate environment file (e.g., config/environments/development.rb)
 config.active_record.encryption.key_derivation_salt = "ea889532a15e4f2cbe34c895a8671a110a901386f85a0f9a83e767f2ae2e1e722e44663ea1d2c1abf3fdad14e97efcbf6df8039f22419aa9087ff0760854c106"

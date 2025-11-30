@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2025_07_30_101241) do
+ActiveRecord::Schema[7.0].define(version: 2025_11_28_131332) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -90,6 +90,43 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_30_101241) do
     t.datetime "updated_at", null: false
     t.bigint "image_project_id", null: false
     t.index ["image_project_id"], name: "index_images_on_image_project_id"
+  end
+
+  create_table "notifications", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "sender_id"
+    t.bigint "project_id"
+    t.bigint "tender_id"
+    t.bigint "task_id"
+    t.string "title", null: false
+    t.text "message", null: false
+    t.string "notification_type", default: "info"
+    t.string "category", default: "system"
+    t.string "priority", default: "medium"
+    t.boolean "is_read", default: false
+    t.datetime "read_at"
+    t.boolean "action_required", default: false
+    t.boolean "archived", default: false
+    t.string "sender_name"
+    t.string "action_url"
+    t.jsonb "metadata", default: {}
+    t.jsonb "tags", default: []
+    t.datetime "expires_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["category"], name: "index_notifications_on_category"
+    t.index ["created_at"], name: "index_notifications_on_created_at"
+    t.index ["is_read"], name: "index_notifications_on_is_read"
+    t.index ["notification_type"], name: "index_notifications_on_notification_type"
+    t.index ["priority"], name: "index_notifications_on_priority"
+    t.index ["project_id"], name: "index_notifications_on_project_id"
+    t.index ["sender_id"], name: "index_notifications_on_sender_id"
+    t.index ["task_id"], name: "index_notifications_on_task_id"
+    t.index ["tender_id"], name: "index_notifications_on_tender_id"
+    t.index ["user_id", "category"], name: "index_notifications_on_user_id_and_category"
+    t.index ["user_id", "created_at"], name: "index_notifications_on_user_id_and_created_at"
+    t.index ["user_id", "is_read"], name: "index_notifications_on_user_id_and_is_read"
+    t.index ["user_id"], name: "index_notifications_on_user_id"
   end
 
   create_table "posts", force: :cascade do |t|
@@ -324,6 +361,11 @@ ActiveRecord::Schema[7.0].define(version: 2025_07_30_101241) do
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "events", "projects"
   add_foreign_key "images", "image_projects"
+  add_foreign_key "notifications", "projects"
+  add_foreign_key "notifications", "tasks"
+  add_foreign_key "notifications", "tenders"
+  add_foreign_key "notifications", "users"
+  add_foreign_key "notifications", "users", column: "sender_id"
   add_foreign_key "progress_updates", "projects"
   add_foreign_key "progress_updates", "users", column: "updated_by_id"
   add_foreign_key "project_milestones", "project_milestones", column: "depends_on_milestone_id"
