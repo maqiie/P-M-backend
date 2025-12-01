@@ -1,0 +1,59 @@
+<!-- app/views/meeting_mailer/invitation_email.html.erb -->
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; }
+    .header { background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+    .content { background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-top: none; }
+    .details { background: white; padding: 15px; border-radius: 8px; margin: 15px 0; }
+    .row { margin: 10px 0; }
+    .label { font-weight: bold; color: #6b7280; }
+    .buttons { margin-top: 20px; }
+    .btn { display: inline-block; padding: 10px 20px; border-radius: 6px; text-decoration: none; margin-right: 10px; color: white; }
+    .btn-accept { background: #10b981; }
+    .btn-decline { background: #ef4444; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📅 Meeting Invitation</h1>
+  </div>
+  <div class="content">
+    <p>Hi <%= @user.name %>,</p>
+    <p>You've been invited to a meeting by <strong><%= @meeting.created_by.name %></strong>.</p>
+    
+    <div class="details">
+      <h2><%= @meeting.title %></h2>
+      <div class="row">
+        <span class="label">Date & Time:</span>
+        <span><%= @meeting.meeting_date.strftime('%A, %B %d, %Y at %I:%M %p') %></span>
+      </div>
+      <div class="row">
+        <span class="label">Duration:</span>
+        <span><%= @meeting.duration_minutes %> minutes</span>
+      </div>
+      <div class="row">
+        <span class="label">Location:</span>
+        <span><%= @meeting.location || 'To be announced' %></span>
+      </div>
+      <% if @meeting.meeting_link.present? %>
+      <div class="row">
+        <span class="label">Meeting Link:</span>
+        <a href="<%= @meeting.meeting_link %>"><%= @meeting.meeting_link %></a>
+      </div>
+      <% end %>
+      <% if @meeting.description.present? %>
+      <div class="row">
+        <span class="label">Description:</span>
+        <p><%= @meeting.description %></p>
+      </div>
+      <% end %>
+    </div>
+
+    <p>Please log in to the dashboard to respond to this invitation.</p>
+    
+    <p>Best regards,<br>The Team</p>
+  </div>
+</body>
+</html>

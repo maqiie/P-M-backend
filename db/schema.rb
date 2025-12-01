@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2025_11_28_131332) do
+ActiveRecord::Schema[7.0].define(version: 2025_11_30_115706) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -90,6 +90,40 @@ ActiveRecord::Schema[7.0].define(version: 2025_11_28_131332) do
     t.datetime "updated_at", null: false
     t.bigint "image_project_id", null: false
     t.index ["image_project_id"], name: "index_images_on_image_project_id"
+  end
+
+  create_table "meeting_participants", force: :cascade do |t|
+    t.bigint "meeting_id", null: false
+    t.bigint "user_id", null: false
+    t.string "status", default: "pending"
+    t.boolean "is_required", default: true
+    t.datetime "responded_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["meeting_id", "user_id"], name: "index_meeting_participants_on_meeting_id_and_user_id", unique: true
+    t.index ["meeting_id"], name: "index_meeting_participants_on_meeting_id"
+    t.index ["user_id"], name: "index_meeting_participants_on_user_id"
+  end
+
+  create_table "meetings", force: :cascade do |t|
+    t.string "title", null: false
+    t.text "description"
+    t.datetime "meeting_date", null: false
+    t.string "location"
+    t.string "meeting_type", default: "in_person"
+    t.string "status", default: "scheduled"
+    t.bigint "created_by_id"
+    t.bigint "project_id"
+    t.integer "duration_minutes", default: 60
+    t.string "meeting_link"
+    t.text "notes"
+    t.text "agenda"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_by_id"], name: "index_meetings_on_created_by_id"
+    t.index ["meeting_date"], name: "index_meetings_on_meeting_date"
+    t.index ["project_id"], name: "index_meetings_on_project_id"
+    t.index ["status"], name: "index_meetings_on_status"
   end
 
   create_table "notifications", force: :cascade do |t|
@@ -361,6 +395,10 @@ ActiveRecord::Schema[7.0].define(version: 2025_11_28_131332) do
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "events", "projects"
   add_foreign_key "images", "image_projects"
+  add_foreign_key "meeting_participants", "meetings"
+  add_foreign_key "meeting_participants", "users"
+  add_foreign_key "meetings", "projects"
+  add_foreign_key "meetings", "users", column: "created_by_id"
   add_foreign_key "notifications", "projects"
   add_foreign_key "notifications", "tasks"
   add_foreign_key "notifications", "tenders"

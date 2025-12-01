@@ -11,6 +11,11 @@ Rails.application.routes.draw do
     get 'users/email_confirmed', to: 'application#email_confirmed'
     get 'users/confirm_email', to: 'application#confirm_email', as: 'confirm_email'
   end
+
+  # ============================================================================
+  # ADD THIS LINE - Users list for meetings
+  # ============================================================================
+  get 'users', to: 'users#index'
   
   get 'project_managers/list', to: 'project_managers#list'
 
@@ -128,23 +133,16 @@ Rails.application.routes.draw do
   # ============================================================================
   resources :notifications, only: [:index, :show, :destroy] do
     collection do
-      # Read status
       get 'unread'
       get 'unread_count'
       get 'stats'
       post 'mark_all_read'
       patch 'mark_all_read'
-      
-      # Bulk operations
       post 'bulk_mark_read'
       post 'bulk_delete'
       delete 'clear_all'
-      
-      # Settings
       get 'settings'
       patch 'update_settings'
-      
-      # Create notifications (for manual triggers)
       post 'create_project_notification'
       post 'create_tender_notification'
       post 'create_task_notification'
@@ -172,18 +170,6 @@ Rails.application.routes.draw do
     resources :reports, only: [:index, :show]
     get 'dashboard/:project_id', to: 'dashboard#show'
     get 'summary', to: 'dashboard#summary'
-  end
-
-  # Reports and analytics
-  namespace :reports do
-    get 'projects/summary'
-    get 'projects/timeline'
-    get 'projects/budget'
-    get 'projects/progress'
-    get 'team/performance'
-    get 'team/workload'
-    get 'tenders/conversion_rate'
-    get 'tenders/success_rate'
   end
 
   # Image and file management
@@ -239,6 +225,41 @@ Rails.application.routes.draw do
       get 'recent'
     end
   end
+
+  # ============================================================================
+  # MEETINGS ROUTES
+  # ============================================================================
+  resources :meetings do
+    member do
+      post :respond, to: 'meetings#respond_to_meeting'
+    end
+  end
+
+  # ============================================================================
+  # REPORTS ROUTES (Direct - not namespaced)
+  # ============================================================================
+  get 'reports/overview', to: 'reports#overview'
+  get 'reports/projects_report', to: 'reports#projects_report'
+  get 'reports/tasks_report', to: 'reports#tasks_report'
+  get 'reports/users_report', to: 'reports#users_report'
+  
+  # Keep old namespace for backward compatibility (optional)
+  namespace :reports do
+    get 'projects/summary'
+    get 'projects/timeline'
+    get 'projects/budget'
+    get 'projects/progress'
+    get 'team/performance'
+    get 'team/workload'
+    get 'tenders/conversion_rate'
+    get 'tenders/success_rate'
+  end
+
+  # ============================================================================
+  # HISTORY ROUTES
+  # ============================================================================
+  get 'history', to: 'history#index'
+  get 'history/timeline', to: 'history#timeline'
 
   # Health and status checks
   get 'health', to: 'application#health'

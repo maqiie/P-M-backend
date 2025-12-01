@@ -23,6 +23,11 @@ has_many :notifications, dependent: :destroy
     self.role = :user
   end
 
+  # app/models/user.rb - Add these lines to your existing User model
+
+has_many :meeting_participants, dependent: :destroy
+has_many :meetings, through: :meeting_participants
+has_many :created_meetings, class_name: 'Meeting', foreign_key: 'created_by_id', dependent: :destroy
   has_many :managed_projects, class_name: 'Project', foreign_key: 'project_manager_id'
   has_many :managed_tasks, foreign_key: 'project_manager_id', class_name: 'Task', dependent: :destroy
   has_many :owned_tasks, foreign_key: 'user_id', class_name: 'Task', dependent: :destroy
