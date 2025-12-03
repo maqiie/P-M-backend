@@ -16,7 +16,7 @@ class Auth::ConfirmationsController < Devise::ConfirmationsController
 
   # Frontend login URL with optional query parameters
   def frontend_login_url(params = {})
-    uri = URI.parse("https://p-m-dashboard.vercel.app/login")
+    uri = URI.parse("https://p-m-dashboard.vercel.app")
     uri.query = params.to_query if params.any?
     uri.to_s
   end
