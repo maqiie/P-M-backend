@@ -41,7 +41,8 @@ Rails.application.configure do
     authentication:       'plain',
     enable_starttls_auto: true
   }
-  config.action_mailer.default_url_options = { host: 'localhost', port: 3000 }
+# config/environments/production.rb
+config.action_mailer.default_url_options = { host: 'p-m-backend.fly.dev', protocol: 'https' }
 
   # Do not fallback to assets pipeline if a precompiled asset is missed.
   config.assets.compile = false
